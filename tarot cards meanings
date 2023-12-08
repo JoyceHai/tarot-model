@@ -1,0 +1,39 @@
+import torch
+
+class MyDataSet:
+    def __init__(self): 
+        with open('D:\python\data\data.txt', 'r') as file:    
+            for i, line in enumerate(file):    
+                elements = line.strip()     
+                if 0 <= i < 4:  # 根据行数决定赋值给哪个变量  
+                    setattr(self, f'A{i+1}', elements)
+                elif 4 <= i < 8:
+                    setattr(self, f'B{i-3}', elements)
+                elif 8 <= i < 12:
+                    setattr(self, f'C{i-7}', elements)
+                elif 12 <= i < 16:
+                    setattr(self, f'D{i-11}', elements)
+                elif 16 <= i < 20:
+                    setattr(self, f'E{i-15}', elements)
+                elif 20 <= i < 24:
+                    setattr(self, f'F{i-19}', elements)
+                elif 24 <= i < 28:
+                    setattr(self, f'G{i-23}', elements)
+                elif 28 <= i < 32:
+                    setattr(self, f'H{i-27}', elements)
+                elif 32 <= i < 36:
+                    setattr(self, f'I{i-31}', elements)
+                elif 36 <= i < 40:
+                    setattr(self, f'J{i-35}', elements)  
+                elif 40 <= i < 44:
+                    setattr(self, f'K{i-39}', elements)
+                elif 44 <= i < 48:
+                    setattr(self, f'L{i-43}', elements)
+                elif 48 <= i < 52:
+                    setattr(self, f'M{i-47}', elements)
+                elif 52 <= i < 56:
+                    setattr(self, f'N{i-51}', elements)
+                                    
+data = MyDataSet() 
+#print(data.H1)
+#查询不同塔罗牌的不同释义
