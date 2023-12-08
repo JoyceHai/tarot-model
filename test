@@ -1,0 +1,104 @@
+
+import torch
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import torch.nn.functional as F  
+from torch.utils.data import TensorDataset  
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from torch import nn  
+  
+class Model(nn.Module):  
+    def __init__(self, input_dim, hidden_dim, output_dim):  
+        super(Model, self).__init__()  
+        self.hidden_dim = hidden_dim  
+        self.lstm = nn.LSTM(input_dim, hidden_dim, bidirectional=True)  
+        self.fc = nn.Linear(hidden_dim * 2, output_dim)  
+    
+    def forward(self, tensor):  
+        h0 = torch.zeros(2, 1, self.hidden_dim).to(device)  
+        c0 = torch.zeros(2, 1, self.hidden_dim).to(device)  
+        in_seq = tensor.view(1, 1, -1)  # 调整输入数据的形状以适应LSTM层  
+        out, (hn, cn) = self.lstm(in_seq, (h0, c0))  
+        out = self.fc(out[:, -1, :])     
+        return out
+
+def string_to_tensor(string, embedding_dim=100):  
+    # 将字符串转换为字符张量  
+    tensor = torch.zeros(len(string), embedding_dim)  
+    for i, char in enumerate(string):  
+        tensor[i] = torch.tensor(embedding_dim * [ord(char) / embedding_dim])  
+    return tensor.view(1, -1)  
+  
+# 示例字符串  
+with open('D:\\python\\data\\test_features.txt', 'r') as file:  
+    lines = file.readlines()  
+    string3 = ''.join(lines)   
+
+with open('D:\\python\\data\\test_labels.txt', 'r') as file:  
+    lines = file.readlines()  
+    string4 = ''.join(lines)
+    
+# 将字符串转换为张量  
+tensor3 = string_to_tensor(string3)
+tensor4 = string_to_tensor(string4)
+  
+# 添加一个额外的维度（序列长度为1） 用于适配RNN 
+test_features = tensor3.unsqueeze(0)  
+test_labels = tensor4.unsqueeze(0)
+
+inputs = test_features  # 输入数据  
+labels = test_labels  # 输出数据  
+  
+# 创建一个TensorDataset实例  
+test_dataset = TensorDataset(inputs, labels)
+
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=400000, shuffle=False)
+
+import torch.optim as optim
+
+# 使用dataloader迭代数据并训练模型 
+for epoch in range(10): 
+    for inputs, labels in test_loader:
+        inputs = inputs.view(1, 400000)
+        model = Model(input_dim=400000, hidden_dim=50, output_dim=400000,)
+        optimizer = optim.SGD(model.parameters(), lr=0.01) 
+        criterion = nn.CrossEntropyLoss()  
+        model.zero_grad()
+        labels = labels.view(1, 400000)
+        outputs = model(inputs)
+        values = outputs
+        loss = criterion(outputs, labels) 
+        loss.backward()  
+        optimizer.step()   
+        #print("Epoch:", epoch+1, "Inputs:", inputs, "Outputs:", outputs)  
+        
+    sum_mean = 0
+    for outputs in values:
+        outputs = outputs.view(1, 400000)  
+        mean = outputs - test_labels
+        sum_mean += mean
+
+#定义平均损失和准确度
+avg_loss = torch.div(sum_mean, 400)
+accuracy = torch.div((test_labels - avg_loss), test_labels)
+#print(avg_loss)
+#print(accuracy)
+print("avg_loss:", avg_loss, "Accuracy:", accuracy) 
+
+#定义准确度的平均值和相对偏差，可视化我的测试结果
+import numpy as np 
+
+tensor = accuracy.detach().numpy()
+  
+sum_result = np.sum(tensor)  
+  
+element_count = np.prod(tensor.shape)  
+  
+average_result = sum_result / element_count  
+  
+print("准确度的平均值：", average_result)
+
+diff_result = (abs(average_result - 1) / 1)*100  
+diff_result_percent = "{:.2f}%".format(diff_result)
+
+print("相对偏差率：" , diff_result_percent)
