@@ -1,0 +1,103 @@
+import torch
+from torch import nn  
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import torch.nn.functional as F  
+from torch.utils.data import TensorDataset  
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+class Model(nn.Module):  
+    def __init__(self, input_dim, hidden_dim, output_dim):  
+        super(Model, self).__init__()  
+        self.hidden_dim = hidden_dim  
+        self.lstm = nn.LSTM(input_dim, hidden_dim, bidirectional=True)  
+        self.fc = nn.Linear(hidden_dim * 2, output_dim)  
+    
+    def forward(self, tensor):  
+        h0 = torch.zeros(2, 1, self.hidden_dim).to(device)  
+        c0 = torch.zeros(2, 1, self.hidden_dim).to(device)  
+        in_seq = tensor.view(1, 1, -1)  # 调整输入数据的形状以适应LSTM层  
+        out, (hn, cn) = self.lstm(in_seq, (h0, c0))  
+        out = self.fc(out[:, -1, :])     
+        return out
+
+def string_to_tensor(string, embedding_dim=100):  
+    # 将字符串转换为字符张量  
+    tensor = torch.zeros(len(string), embedding_dim)  
+    for i, char in enumerate(string):  
+        tensor[i] = torch.tensor(embedding_dim * [ord(char) / embedding_dim])  
+    return tensor.view(1, -1)  
+  
+# 示例字符串  
+with open('D:\\python\\data\\train_features.txt', 'r') as file:  
+    lines = file.readlines()  
+    string1 = ''.join(lines)   
+
+with open('D:\\python\\data\\train_labels.txt', 'r') as file:  
+    lines = file.readlines()  
+    string2 = ''.join(lines)
+    
+# 将字符串转换为张量  
+tensor1 = string_to_tensor(string1)
+tensor2 = string_to_tensor(string2)
+  
+# 添加一个额外的维度（序列长度为1） 用于适配RNN 
+train_features = tensor1.unsqueeze(0)  
+train_labels = tensor2.unsqueeze(0)
+
+inputs = train_features  # 输入数据  
+labels = train_labels  # 输出数据  
+  
+# 创建一个TensorDataset实例  
+train_dataset = TensorDataset(inputs, labels)
+
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1600000, shuffle=True)
+
+import torch.optim as optim
+
+# 使用dataloader迭代数据并训练模型
+
+for epoch in range(10): # 假设要训练10个epochs  
+    for inputs,labels in train_loader:
+        inputs = inputs.view(1, 1600000)
+        model = Model(input_dim=1600000, hidden_dim=30, output_dim=1600000,)
+        optimizer = optim.SGD(model.parameters(), lr=0.01) # 这里定义了优化器为SGD，并且设定学习率为0.01  
+        criterion = nn.CrossEntropyLoss() # 这里定义了损失函数为CrossEntropyLoss，用于多分类问题 
+        model.zero_grad() # 清空梯度缓存，在开始每个epoch时需要重新初始化模型参数和梯度缓存  
+        labels = labels.view(1, 1600000)
+        outputs = model(inputs)
+        values = outputs
+        loss = criterion(outputs, labels) # 使用损失函数计算损失  
+        loss.backward() # 反向传播计算梯度  
+        optimizer.step() # 更新模型参数  
+        #print("Epoch:", epoch+1, "Inputs:", inputs, "Outputs:", outputs)  
+        # 这里可以打印出每个epoch的输入和标签以便调试和记录学习过程
+    sum_mean = 0
+    for outputs in values:
+        outputs = outputs.view(1, 1600000)  
+        mean = outputs - train_labels
+        sum_mean += mean
+        
+avg_loss = torch.div(sum_mean, 1600)
+accuracy = torch.div((train_labels - avg_loss), train_labels)
+##print(avg_loss)
+##print(accuracy)
+print("avg_loss:", avg_loss, "Accuracy:", accuracy)  
+
+import numpy as np 
+
+
+tensor = accuracy.detach().numpy()
+  
+sum_result = np.sum(tensor)  
+  
+element_count = np.prod(tensor.shape)  
+  
+average_result = sum_result / element_count  
+  
+print("准确度的平均值：", average_result)
+
+diff_result = (abs(average_result - 1) / 1)*100  
+diff_result_percent = "{:.2f}%".format(diff_result)
+
+print("相对偏差率：" , diff_result_percent)
